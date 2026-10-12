@@ -141,5 +141,46 @@ def get_income_stats():
         "realized_income": realized_income
     }), 200
 
+# ----------------- UPDATE & DELETE ENDPOINTS -----------------
+
+@app.route("/projects/<int:project_id>", methods=["PATCH"])
+def update_project_status(project_id):
+    """Update only the status of a specific project."""
+    data = request.get_json()
+    new_status = data.get("status")
+
+    valid_statuses = ["pending", "in_progress", "completed"]
+    if new_status not in valid_statuses:
+        return jsonify({
+            "error": f"Invalid status. Choose from: {', '.join(valid_statuses)}"
+        }), 400
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE projects SET status = ? WHERE id = ?",
+            (new_status, project_id)
+        )
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Project not found"}), 404
+
+    return jsonify({"message": f"Project {project_id} updated to '{new_status}' successfully"}), 200
+
+
+@app.route("/projects/<int:project_id>", methods=["DELETE"])
+def delete_project(project_id):
+    """Delete a project by its ID."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            return jsonify({"error": "Project not found"}), 404
+
+    return jsonify({"message": f"Project {project_id} deleted successfully"}), 200
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
