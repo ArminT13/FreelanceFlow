@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from database import get_connection, init_db
 
 app = Flask(__name__)
@@ -8,10 +8,7 @@ init_db()
 
 @app.route("/")
 def home():
-    return jsonify({
-        "message": "Welcome to FreelanceFlow API!",
-        "status": "running"
-    })
+    return render_template("index.html")
 
 # ----------------- CLIENT ENDPOINTS -----------------
 
