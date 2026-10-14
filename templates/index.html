@@ -105,15 +105,30 @@
             </div>
         </div>
 
-        <!-- Projects Table -->
+        <!-- Projects Table with Filter and Export -->
         <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl overflow-hidden shadow-lg">
-            <div class="p-5 border-b border-slate-700/60 flex items-center justify-between">
+            <div class="p-5 border-b border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h2 class="text-lg font-semibold text-white flex items-center gap-2">
                     <span>📋</span> All Projects
                 </h2>
-                <button onclick="refreshData()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg transition">
-                    ↻ Refresh
-                </button>
+                
+                <!-- Action Bar: Status Filter + Export CSV + Refresh -->
+                <div class="flex items-center gap-3">
+                    <select id="filterStatus" onchange="fetchProjects()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+                        <option value="all">All Statuses</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="pending">Pending</option>
+                        <option value="completed">Completed</option>
+                    </select>
+
+                    <a href="/projects/export/csv" class="inline-flex items-center gap-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg transition font-medium">
+                        <span>📥</span> Export CSV
+                    </a>
+
+                    <button onclick="refreshData()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded-lg transition">
+                        ↻ Refresh
+                    </button>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm text-slate-300">
@@ -156,13 +171,16 @@
         }
 
         async function fetchProjects() {
-            const res = await fetch('/projects');
+            const status = document.getElementById('filterStatus').value;
+            const url = status && status !== 'all' ? `/projects?status=${status}` : '/projects';
+
+            const res = await fetch(url);
             const projects = await res.json();
             const tbody = document.getElementById('projectsTableBody');
             tbody.innerHTML = '';
 
             if (projects.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">No projects found. Add one above!</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">No projects match the selected criteria.</td></tr>`;
                 return;
             }
 
@@ -258,7 +276,6 @@
             fetchProjects();
         }
 
-        // Initial load
         refreshData();
     </script>
 </body>

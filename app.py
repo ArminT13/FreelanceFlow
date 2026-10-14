@@ -1,4 +1,6 @@
-from flask import Flask, request, jsonify, render_template
+import csv
+import io
+from flask import Flask, request, jsonify, render_template, Response
 from database import get_connection, init_db
 
 app = Flask(__name__)
@@ -99,18 +101,28 @@ def create_project():
 
 @app.route("/projects", methods=["GET"])
 def get_projects():
-    """Retrieve all projects with their client information."""
+    """Retrieve projects with optional status filter."""
+    status_filter = request.args.get("status")
+
     with get_connection() as conn:
         cursor = conn.cursor()
-        # Using JOIN to fetch the client's name directly with the project
-        cursor.execute("""
+        
+        query = """
             SELECT 
                 p.id, p.title, p.budget, p.status, p.deadline,
                 c.id AS client_id, c.name AS client_name
             FROM projects p
             JOIN clients c ON p.client_id = c.id
-            ORDER BY p.id DESC
-        """)
+        """
+        params = []
+
+        if status_filter and status_filter != "all":
+            query += " WHERE p.status = ?"
+            params.append(status_filter)
+
+        query += " ORDER BY p.id DESC"
+        
+        cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
         projects_list = [dict(row) for row in rows]
 
@@ -178,6 +190,42 @@ def delete_project(project_id):
             return jsonify({"error": "Project not found"}), 404
 
     return jsonify({"message": f"Project {project_id} deleted successfully"}), 200
+
+@app.route("/projects/export/csv", methods=["GET"])
+def export_projects_csv():
+    """Export all projects as a downloadable CSV file."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                p.id, p.title, c.name AS client_name, 
+                p.budget, p.status, p.deadline
+            FROM projects p
+            JOIN clients c ON p.client_id = c.id
+            ORDER BY p.id DESC
+        """)
+        rows = cursor.fetchall()
+
+    # ساخت فایل CSV در حافظه
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # نوشتن هدر ستون‌ها
+    writer.writerow(["Project ID", "Title", "Client", "Budget ($)", "Status", "Deadline"])
+    
+    # نوشتن داده‌ها
+    for row in rows:
+        writer.writerow([
+            row["id"], row["title"], row["client_name"], 
+            row["budget"], row["status"], row["deadline"] or "N/A"
+        ])
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=freelanceflow_projects.csv"}
+    )
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
